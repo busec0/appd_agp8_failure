@@ -2,7 +2,7 @@ package com.test.appdagp8
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import com.test.appdfragments.databinding.ActivityMainBinding
+import com.test.appdagp8.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
 

@@ -1,50 +1,87 @@
 # Context
 
-Gradle 8.0 (still in Alpha) will drop the support to Gradle Transformation API, which seems to be heavily used by the "adeum" AppDynamics Gradle plugin.
-It is essential that AppDynamics migrates the plugin to the new standards as soon as possible, otherwise it will block Android builds to migrate to the new version of Gradle within the next few months.
+Android Gradle Plugin 8+ requires AppDynamic Android (`adeum` plugin) version 23.4.1 (and over). The Gradle Transformation API has been removed.
 
-*Official announcement can be found here:* https://android-developers.googleblog.com/2022/10/prepare-your-android-project-for-agp8-changes.html
+The version **23.4.1** of AppDynamic fails when combined with Android `kapt`.
+Apart from that, the new plugin seems to generate excessive warning logs.
+
+
+## Problems
+
+### 1. Failure to build when `disabledForBuildTypes` is used in combination with `kapt`
+
+`app/build.gradle.kts`:
+```kotlin
+plugins {
+    // (...)
+    id("com.google.dagger.hilt.android")
+    kotlin("kapt")
+    id("adeum")
+}
+
+adeum {
+    disabledForBuildTypes = listOf("debug")
+}
+dependencies {
+    implementation("com.google.dagger:hilt-android:2.44.2")
+    kapt("com.google.dagger:hilt-android-compiler:2.44.2")
+//    (...)
+}
+```
+
+Causes:
+```text
+(...)
+Caused by: com.android.tools.r8.utils.b: Type com.test.appdagp8.MainApplication$Companion is defined multiple times: <projectpath>/AppDAgp8/app/build/intermediates/classes/debug/transformDebugClassesWithAsm/dirs/transformDebugClassesWithAsm/dirs/com/test/appdagp8/MainApplication$Companion.class, <projectpath>/AppDAgp8/app/build/intermediates/classes/debug/transformDebugClassesWithAsm/dirs/com/test/appdagp8/MainApplication$Companion.class
+        at com.android.tools.r8.utils.E2.a(R8_8.0.40_1caf5950b946297b5c46a21a695cd28795208d72fd17f5129543b31a15a067c2:21)
+        at com.android.tools.r8.utils.E2.a(R8_8.0.40_1caf5950b946297b5c46a21a695cd28795208d72fd17f5129543b31a15a067c2:26)
+        at com.android.tools.r8.utils.r2.a(R8_8.0.40_1caf5950b946297b5c46a21a695cd28795208d72fd17f5129543b31a15a067c2:44)
+        at com.android.tools.r8.utils.r2.a(R8_8.0.40_1caf5950b946297b5c46a21a695cd28795208d72fd17f5129543b31a15a067c2:10)
+        at java.base/java.util.concurrent.ConcurrentHashMap.merge(Unknown Source)
+        at com.android.tools.r8.utils.r2.a(R8_8.0.40_1caf5950b946297b5c46a21a695cd28795208d72fd17f5129543b31a15a067c2:6)
+        at com.android.tools.r8.graph.k4$a.e(R8_8.0.40_1caf5950b946297b5c46a21a695cd28795208d72fd17f5129543b31a15a067c2:7)
+        at com.android.tools.r8.dex.c.a(R8_8.0.40_1caf5950b946297b5c46a21a695cd28795208d72fd17f5129543b31a15a067c2:58)
+        at com.android.tools.r8.dex.c.a(R8_8.0.40_1caf5950b946297b5c46a21a695cd28795208d72fd17f5129543b31a15a067c2:9)
+        at com.android.tools.r8.dex.c.a(R8_8.0.40_1caf5950b946297b5c46a21a695cd28795208d72fd17f5129543b31a15a067c2:8)
+        at com.android.tools.r8.D8.a(R8_8.0.40_1caf5950b946297b5c46a21a695cd28795208d72fd17f5129543b31a15a067c2:29)
+        at com.android.tools.r8.D8.d(R8_8.0.40_1caf5950b946297b5c46a21a695cd28795208d72fd17f5129543b31a15a067c2:17)
+        at com.android.tools.r8.D8.b(R8_8.0.40_1caf5950b946297b5c46a21a695cd28795208d72fd17f5129543b31a15a067c2:1)
+        at com.android.tools.r8.utils.N0.a(R8_8.0.40_1caf5950b946297b5c46a21a695cd28795208d72fd17f5129543b31a15a067c2:23)
+        ... 43 more
+
+
+Execution failed for task ':app:dexBuilderDebug'.
+> There was a failure while executing work items
+   > A failure occurred while executing com.android.build.gradle.internal.dexing.DexWorkAction
+      > Failed to process: <projectpath>/AppDAgp8/app/build/intermediates/classes/debug/transformDebugClassesWithAsm/dirs
+
+(...)
+
+```
+
+
+### 2. Excessive warnings
+Hundreds of entries on the format:
+```
+WARNING: <projectpath>/AppDAgp8/app/build/intermediates/classes/release/ALL/classes.jar: D8: Expected stack map table for method with non-linear control flow.
+WARNING: <projectpath>/AppDAgp8/app/build/intermediates/classes/release/ALL/classes.jar: D8: Expected stack map table for method with non-linear control flow.
+WARNING: <projectpath>/AppDAgp8/app/build/intermediates/classes/release/ALL/classes.jar: D8: Expected stack map table for method with non-linear control flow.
+(...)
+```
 
 ## How to see the error
 
-Just run `./gradlew build`, it should show an error similar to:
+Be sure that the `disabledForBuildTypes` is set to exclude `debug` builds.
+E.g.:
 
-```
-FAILURE: Build failed with an exception.
+In file `app/build.gradle.kts`
 
-* Where:
-Build file 'AppDAgp8/app/build.gradle' line: 4
-
-* What went wrong:
-An exception occurred applying plugin request [id: 'adeum', artifact: 'com.appdynamics:appdynamics-gradle-plugin:21.6.0']
-> Failed to apply plugin 'adeum'.
-   > API 'android.registerTransform' is removed.
-     
-     For more information, see https://developer.android.com/studio/releases/gradle-plugin-api-updates#transform-api.
-     To determine what is calling android.registerTransform, use -Pandroid.debug.obsoleteApi=true on the command line to display more information.
+```kotlin
+adeum {
+    disabledForBuildTypes = listOf("debug")
+}
 ```
 
+Run `./gradlew clean build`
 
-## Additional information
-
-- As of the time writing (Oct/2022) the official version of AGP is 7.3.0. This version will give a warning, similar to:
-```
-> Configure project :app
-WARNING:API 'android.registerTransform' is obsolete.
-It will be removed in version 8.0 of the Android Gradle plugin.
-The Transform API is removed to improve build performance. Projects that use the
-Transform API force the Android Gradle plugin to use a less optimized flow for the
-build that can result in large regressions in build times. It’s also difficult to
-use the Transform API and combine it with other Gradle features; the replacement
-APIs aim to make it easier to extend the build without introducing performance or
-correctness issues.
-
-There is no single replacement for the Transform API—there are new, targeted
-APIs for each use case. All the replacement APIs are in the
-`androidComponents {}` block.
-
-```
-
-- You can see that by replacing the version `8.0.0-alpha03` with `7.3.0` in `./build.gradle.kts`
-- This project won't open in stable release of Android Studio, given it is not yet compatible, but it can run via terminal
-- The current version of AGP (7.3.0) already support the new methodologies, so the plugin can be migrated before AGP 8 becomes production ready
+If the `disabledForBuildTypes` line is commented out, or if `kapt`/`hilt` is removed, the problem doesn't happen.
