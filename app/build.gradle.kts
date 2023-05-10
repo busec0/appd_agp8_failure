@@ -3,7 +3,47 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
     kotlin("kapt")
-    id("adeum")
+}
+
+import com.android.build.api.variant.ScopedArtifacts
+import com.android.build.api.artifact.ScopedArtifact
+
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.Directory
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.TaskAction
+import javassist.ClassPool
+import javassist.CtClass
+import java.io.FileInputStream
+
+abstract class AddClassesTask: DefaultTask() {
+
+    @get:OutputDirectory
+    abstract val output: DirectoryProperty
+
+    @TaskAction
+    fun taskAction() {
+        val pool = ClassPool(ClassPool.getDefault())
+
+        val interfaceClass = pool.makeInterface("com.android.api.tests.SomeInterface");
+        println("Adding $interfaceClass")
+
+        interfaceClass.writeFile(output.get().asFile.absolutePath)
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        val taskProvider = project.tasks.register<AddClassesTask>("${variant.name}AddClasses")
+        variant.artifacts
+            .forScope(ScopedArtifacts.Scope.PROJECT)
+            .use(taskProvider)
+            .toAppend(
+                ScopedArtifact.CLASSES,
+                AddClassesTask::output
+            )
+    }
 }
 
 android {
@@ -41,17 +81,10 @@ android {
     }
 }
 
-adeum {
-    disabledForBuildTypes = listOf("debug")
-}
-
 dependencies {
 
-    implementation("com.google.dagger:hilt-android:2.44.2")
-    kapt("com.google.dagger:hilt-android-compiler:2.44.2")
-    implementation("com.appdynamics:appdynamics-runtime:23.4.1") {
-        exclude(group = "org.apache.httpcomponents")
-    }
+    implementation("com.google.dagger:hilt-android:2.46")
+    kapt("com.google.dagger:hilt-android-compiler:2.46")
     implementation("androidx.core:core-ktx:1.8.0")
     implementation("androidx.appcompat:appcompat:1.5.0")
     implementation("com.google.android.material:material:1.6.1")
