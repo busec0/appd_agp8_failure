@@ -49,7 +49,7 @@ dependencies {
 
     implementation("com.google.dagger:hilt-android:2.44.2")
     kapt("com.google.dagger:hilt-android-compiler:2.44.2")
-    implementation("com.appdynamics:appdynamics-runtime:23.4.1") {
+    implementation("com.appdynamics:appdynamics-runtime:23.4.2") {
         exclude(group = "org.apache.httpcomponents")
     }
     implementation("androidx.core:core-ktx:1.8.0")

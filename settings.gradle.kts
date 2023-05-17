@@ -3,12 +3,13 @@ pluginManagement {
         gradlePluginPortal()
         google()
         mavenCentral()
+        maven (url = file("mc-artifacts"))
     }
 
     resolutionStrategy {
         eachPlugin {
             when (requested.id.id) {
-                "adeum" -> useModule("com.appdynamics:appdynamics-gradle-plugin:23.4.1")
+                "adeum" -> useModule("com.appdynamics:appdynamics-gradle-plugin:23.4.2")
             }
         }
     }
@@ -18,6 +19,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven (url = file("mc-artifacts"))
     }
 }
 rootProject.name = "AppDAgp8"
